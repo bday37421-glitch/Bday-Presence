@@ -1,0 +1,2 @@
+# Never publish the encrypt tool — it contains plaintext content
+encrypt-tool.html
