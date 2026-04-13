@@ -1148,6 +1148,21 @@
         font-size: 0.95rem;
       }
 
+      #lockScreen, #countdownScreen {
+        gap: 15px;
+        padding: 20px 16px;
+      }
+
+      .lock-icon, .countdown-icon {
+        font-size: 3.5rem;
+        margin-bottom: 5px;
+      }
+
+      .lock-title, .countdown-title {
+        font-size: 1.8rem;
+        margin-bottom: 5px;
+      }
+
       .chapter-card {
         padding: 28px 16px;
         border-radius: 18px;
@@ -1400,22 +1415,17 @@
     }
 
     @keyframes lock-bob {
-
-      0%,
-      100% {
-        transform: translateY(0) rotate(-4deg);
-      }
-
-      50% {
-        transform: translateY(-12px) rotate(4deg);
-      }
+      0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+      50% { transform: translateY(-4px) rotate(1.5deg); }
     }
 
     .lock-title {
       font-family: 'Dancing Script', cursive;
-      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-size: clamp(1.7rem, 5vw, 2.5rem);
       color: #c8a8ff;
       line-height: 1.3;
+      font-weight: bold;
+      text-shadow: 0 0 15px rgba(200, 168, 255, 0.3);
     }
 
     .lock-sub {
@@ -1765,13 +1775,8 @@
     }
 
     @keyframes gentle-hover {
-      0% {
-        transform: translateY(0);
-      }
-
-      100% {
-        transform: translateY(-8px);
-      }
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-3px); }
     }
 
     .countdown-icon {
