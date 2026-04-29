@@ -46,21 +46,8 @@
       color: var(--white);
       font-family: var(--font-body);
       overflow-x: hidden;
+      overflow-y: hidden; /* locked until story is unlocked */
       cursor: none;
-    }
-
-    /* ── SCROLLBAR ── */
-    ::-webkit-scrollbar {
-      width: 5px;
-    }
-
-    ::-webkit-scrollbar-track {
-      background: #000008;
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: linear-gradient(#3d0066, #cc0033);
-      border-radius: 3px;
     }
 
     /* ── CURSOR ── */
@@ -2177,9 +2164,7 @@
             <span class="you-reveal-sub">— the answer was you</span>
           </div>
         </div>
-        <br>
-        <!-- ↓ Decrypted content injected here ↓ -->
-        <div id="enc-train2"></div>
+
       </div>
     </div>
   </section>
@@ -2273,21 +2258,51 @@
 
     // Map decrypted text blocks to DOM injection
     function injectContent(data) {
-      // Helper: split text on blank lines into paragraphs
+      // Robust block-state parser: handles single-newline quotes & dashes
       function textToHTML(raw) {
-        return raw.trim().split(/\n\n+/).map(para => {
-          const line = para.trim();
-          if (line.startsWith('"') || line.startsWith('\u201c')) {
-            return `<div class="chapter-quote">${line.replace(/\n/g, '<br>')}</div>`;
+        if (!raw) return '';
+        const lines = raw.trim().split(/\n/);
+        const blocks = [];
+        let currBlockType = 'text';
+        let currContent = [];
+        for (let t of lines) {
+          t = t.trim();
+          if (!t) {
+            if (currContent.length > 0) {
+              blocks.push({ type: currBlockType, text: currContent.join('<br>') });
+              currContent = [];
+            }
+            currBlockType = 'text';
+            continue;
           }
-          return `<p class="chapter-text">${line.replace(/\n/g, '<br>')}</p>`;
-        }).join('<br>');
+          const isQuoteStart = t.match(/^["\u201c\u201d']/) || t.startsWith('--') || t.startsWith('\u2014');
+          if (isQuoteStart && currBlockType !== 'quote') {
+            if (currContent.length > 0) {
+              blocks.push({ type: currBlockType, text: currContent.join('<br>') });
+              currContent = [];
+            }
+            currBlockType = 'quote';
+          }
+          currContent.push(t);
+          if (currBlockType === 'quote' && t.match(/["\u201c\u201d']$/)) {
+            blocks.push({ type: 'quote', text: currContent.join('<br>') });
+            currContent = [];
+            currBlockType = 'text';
+          }
+        }
+        if (currContent.length > 0) {
+          blocks.push({ type: currBlockType, text: currContent.join('<br>') });
+        }
+        return blocks.map(b =>
+          b.type === 'quote'
+            ? `<div class="chapter-quote">${b.text}</div>`
+            : `<p class="chapter-text">${b.text}</p>`
+        ).join('');
       }
       document.getElementById('enc-ch1').innerHTML = textToHTML(data.ch1);
       document.getElementById('enc-ch2').innerHTML = textToHTML(data.ch2);
       document.getElementById('enc-ch3').innerHTML = textToHTML(data.ch3);
       document.getElementById('enc-train').innerHTML = textToHTML(data.train);
-      document.getElementById('enc-train2').innerHTML = textToHTML(data.train2);
       document.getElementById('enc-bday').innerHTML = textToHTML(data.bday)
         .replace(/<p class="chapter-text">/g, '<p class="bday-message">');
     }
@@ -2338,7 +2353,7 @@
       try {
         const key = await deriveKey(password, ENCRYPTED_CONTENT.salt);
         const data = {};
-        for (const id of ['ch1', 'ch2', 'ch3', 'train', 'train2', 'bday']) {
+        for (const id of ['ch1', 'ch2', 'ch3', 'train', 'bday']) {
           // Prevent crash if a block is completely missing from the generated payload
           if (ENCRYPTED_CONTENT[id]) {
             data[id] = await decryptBlock(ENCRYPTED_CONTENT[id], key);
@@ -2365,7 +2380,8 @@
           setTimeout(() => document.getElementById('lockScreen').remove(), 950);
 
           document.getElementById('countdownScreen').classList.remove('hidden');
-          document.getElementById('musicToggle').classList.add('visible'); // Let her toggle music while waiting
+          document.body.style.overflowY = 'hidden'; // keep scroll locked on countdown
+          document.getElementById('musicToggle').classList.add('visible');
           startCountdown(bdayDate);
           return; // Stop the regular unlock animation!
         }
@@ -2376,8 +2392,7 @@
         await new Promise(r => setTimeout(r, 480));
         document.getElementById('lockScreen').classList.add('hidden');
         setTimeout(() => document.getElementById('lockScreen').remove(), 950);
-
-        // Show the music button so they can toggle it
+        document.body.style.overflowY = 'auto'; // story is visible now
         document.getElementById('musicToggle').classList.add('visible');
 
       } catch (e) {
@@ -2421,7 +2436,12 @@
           const cd = document.getElementById('countdownScreen');
           if (cd) {
             cd.classList.add('hidden');
-            setTimeout(() => cd.remove(), 950);
+            setTimeout(() => {
+              cd.remove();
+              document.body.style.overflowY = 'auto'; // countdown ended, reveal story
+              document.querySelectorAll('[data-reveal]').forEach(el => el.classList.add('revealed'));
+              setTimeout(() => launchConfetti(), 800);
+            }, 950);
           }
           return;
         }
@@ -2442,7 +2462,6 @@
 
     /* ── BYPASS LOGIC ── */
     function showBypass() {
-      document.getElementById('bypassTrigger').classList.add('hidden');
       document.getElementById('bypassTrigger').style.display = 'none';
       document.getElementById('bypassArea').classList.remove('hidden');
       document.getElementById('bypassKey').focus();
@@ -2517,7 +2536,7 @@
       setTimeout(() => {
         screen.remove();
         container.remove();
-        // Ensure music button is visible
+        document.body.style.overflowY = 'auto'; // bypass complete, unlock scroll
         document.getElementById('musicToggle').classList.add('visible');
       }, 3000);
     }
